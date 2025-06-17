@@ -2,17 +2,23 @@ import SwiftUI
 import SwiftData
 
 struct PokemonDetailView: View {
+    // Usamos @StateObject para que o ViewModel persista durante o ciclo de vida da View.
     @StateObject private var viewModel: PokemonDetailViewModel
-    @Environment(\.modelContext) private var modelContext // Pega o contexto do ambiente
+    
+    // Pegamos o modelContext que já existe no ambiente.
+    @Environment(\.modelContext) private var modelContext
+    
     let animationNamespace: Namespace.ID
 
+    // ESTE É O INIT CORRETO E ROBUSTO
+    // Ele recebe os parâmetros necessários da View anterior.
     init(pokemonURL: String, user: User, namespace: Namespace.ID) {
         self.animationNamespace = namespace
-        // A inicialização agora é feita de forma síncrona, mas o @Environment
-        // garante que o modelContext estará disponível quando a View for renderizada.
-        // Por isso, usamos um contexto temporário aqui.
-        let tempModelContext = try! ModelContainer(for: User.self, FavoritePokemon.self).mainContext
-        _viewModel = StateObject(wrappedValue: PokemonDetailViewModel(pokemonURL: pokemonURL, user: user, modelContext: tempModelContext))
+        
+        // Criamos o StateObject aqui, passando os parâmetros necessários.
+        // Note que o modelContext ainda não está disponível NESTE PONTO do código.
+        // Por isso, a inicialização completa do ViewModel será feita no .onAppear.
+        _viewModel = StateObject(wrappedValue: PokemonDetailViewModel(pokemonURL: pokemonURL, user: user))
     }
 
     var body: some View {
@@ -20,6 +26,7 @@ struct PokemonDetailView: View {
             if viewModel.isLoading {
                 ProgressView().frame(height: 300)
             } else if let detail = viewModel.pokemonDetail {
+                // O conteúdo da View (VStack, etc.) permanece o mesmo...
                 VStack(spacing: AppSpacing.medium) {
                     AsyncImage(url: URL(string: detail.sprites.other?.officialArtwork.front_default ?? "")) { image in
                         image.resizable().scaledToFit()
@@ -40,12 +47,18 @@ struct PokemonDetailView: View {
                     .scaleEffect(viewModel.isFavorite ? 1.1 : 1.0)
                     
                 }.padding()
+                
             } else if let errorMessage = viewModel.errorMessage {
                 Text(errorMessage).foregroundColor(.red)
             }
         }
         .navigationTitle(viewModel.pokemonDetail?.name.capitalized ?? "Carregando...")
         .onAppear {
+            // Aqui, o modelContext do @Environment já está disponível.
+            // Nós o passamos para o ViewModel para que ele possa configurar o PersistenceService.
+            viewModel.setup(modelContext: modelContext)
+            
+            // A chamada para buscar os dados também é feita aqui.
             if viewModel.pokemonDetail == nil {
                 viewModel.fetchData()
             }
