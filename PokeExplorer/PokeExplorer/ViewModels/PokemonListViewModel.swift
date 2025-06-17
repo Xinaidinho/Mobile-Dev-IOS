@@ -11,6 +11,11 @@ class PokemonListViewModel: ObservableObject {
     private let limit = 20
     private var canLoadMore = true
     
+    init() {
+        // Carrega os primeiros Pokémon assim que a view é inicializada
+        loadMorePokemons()
+    }
+    
     func loadMorePokemonsIfNeeded(currentPokemon: Pokemon?) {
         // Lógica para carregar mais itens quando o usuário se aproxima do final da lista
         guard let currentPokemon = currentPokemon else {
@@ -24,7 +29,7 @@ class PokemonListViewModel: ObservableObject {
         }
     }
     
-    private func loadMorePokemons() {
+    func loadMorePokemons() {
         guard !isLoading, canLoadMore else { return }
         
         isLoading = true
