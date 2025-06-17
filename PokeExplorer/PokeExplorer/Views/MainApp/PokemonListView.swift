@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PokemonListView: View {
     @StateObject private var viewModel = PokemonListViewModel()
-    @Namespace private var animationNamespace // Namespace para a animação
+    @Namespace private var animationNamespace
     let user: User
     
     let columns = [GridItem(.adaptive(minimum: 120))]
@@ -13,20 +13,26 @@ struct PokemonListView: View {
                 ForEach(viewModel.pokemons) { pokemon in
                     NavigationLink(destination: PokemonDetailView(pokemonURL: pokemon.url, user: user, namespace: animationNamespace)) {
                         PokemonGridItemView(pokemon: pokemon, animationNamespace: animationNamespace)
+                            // Este .onAppear continua aqui para a paginação
                             .onAppear {
                                 viewModel.loadMorePokemonsIfNeeded(currentPokemon: pokemon)
                             }
                     }
-                    .buttonStyle(.plain) // Essencial para a animação funcionar bem
+                    .buttonStyle(.plain)
                 }
             }
             .padding()
-            .animation(.default, value: viewModel.pokemons) // Anima a chegada de novos pokémons
+            .animation(.default, value: viewModel.pokemons)
 
             if viewModel.isLoading {
                 ProgressView().padding()
             }
         }
         .navigationTitle("PokéExplorer")
+        // ADICIONE ESTE MODIFICADOR:
+        // Dispara a busca de dados assim que a tela aparece.
+        .onAppear {
+            viewModel.fetchInitialPokemons()
+        }
     }
 }

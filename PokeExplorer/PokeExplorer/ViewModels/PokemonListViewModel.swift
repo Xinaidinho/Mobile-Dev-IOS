@@ -11,17 +11,16 @@ class PokemonListViewModel: ObservableObject {
     private let limit = 20
     private var canLoadMore = true
     
-    init() {
-        // Carrega os primeiros Pokémon assim que a view é inicializada
+    // NOVA FUNÇÃO: Dispara a carga inicial dos dados.
+    func fetchInitialPokemons() {
+        // Garante que a chamada inicial não seja feita múltiplas vezes.
+        guard pokemons.isEmpty else { return }
         loadMorePokemons()
     }
     
+    // Função para paginação, chamada quando o usuário rola a tela.
     func loadMorePokemonsIfNeeded(currentPokemon: Pokemon?) {
-        // Lógica para carregar mais itens quando o usuário se aproxima do final da lista
-        guard let currentPokemon = currentPokemon else {
-            loadMorePokemons()
-            return
-        }
+        guard let currentPokemon = currentPokemon else { return }
         
         let thresholdIndex = pokemons.index(pokemons.endIndex, offsetBy: -5)
         if pokemons.firstIndex(where: { $0.id == currentPokemon.id }) == thresholdIndex {
@@ -29,9 +28,8 @@ class PokemonListViewModel: ObservableObject {
         }
     }
     
-    func loadMorePokemons() {
+    private func loadMorePokemons() {
         guard !isLoading, canLoadMore else { return }
-        
         isLoading = true
         
         Task {
@@ -39,15 +37,14 @@ class PokemonListViewModel: ObservableObject {
                 let offset = currentPage * limit
                 let response = try await apiService.fetchPokemonList(limit: limit, offset: offset)
                 
-                self.pokemons.append(contentsOf: response.results)
-                self.currentPage += 1
-                self.canLoadMore = response.next != nil
+                pokemons.append(contentsOf: response.results)
+                currentPage += 1
+                canLoadMore = !response.results.isEmpty
                 
             } catch {
                 self.errorMessage = "Falha ao carregar Pokémon: \(error.localizedDescription)"
             }
-            
-            self.isLoading = false
+            isLoading = false
         }
     }
 }
