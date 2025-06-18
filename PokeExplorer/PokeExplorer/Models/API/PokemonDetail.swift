@@ -33,11 +33,11 @@ struct MoveElement: Codable, Hashable {
 struct Sprites: Codable {
     // A API usa "snake_case". O decoder cuidará da conversão.
     let front_default: String? // Corrigido para opcional
-    let other: OtherSprites?
+    let other: OtherSprites? // Garante que é opcional
 }
 
 struct OtherSprites: Codable {
-    let officialArtwork: OfficialArtwork
+    let officialArtwork: OfficialArtwork? // Garante que é opcional
     
     enum CodingKeys: String, CodingKey {
         case officialArtwork = "official-artwork"
@@ -45,7 +45,7 @@ struct OtherSprites: Codable {
 }
 
 struct OfficialArtwork: Codable {
-    let front_default: String
+    let front_default: String? // Corrigido para opcional
 }
 
 struct StatElement: Codable, Hashable {
