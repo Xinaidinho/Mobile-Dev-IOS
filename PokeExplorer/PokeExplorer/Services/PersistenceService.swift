@@ -85,7 +85,7 @@ class PersistenceService {
         let newFavorite = FavoritePokemon(
             pokemonID: pokemonDetail.id,
             name: pokemonDetail.name,
-            imageUrl: pokemonDetail.sprites.other?.officialArtwork.front_default
+            imageUrl: pokemonDetail.sprites.other?.officialArtwork?.front_default
         )
         
         // 3. Associa ao usuário e salva
