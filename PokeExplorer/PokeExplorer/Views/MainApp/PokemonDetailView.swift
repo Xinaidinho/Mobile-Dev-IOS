@@ -28,7 +28,7 @@ struct PokemonDetailView: View {
             } else if let detail = viewModel.pokemonDetail {
                 // O conteúdo da View (VStack, etc.) permanece o mesmo...
                 VStack(spacing: AppSpacing.medium) {
-                    AsyncImage(url: URL(string: detail.sprites.other?.officialArtwork.front_default ?? "")) { image in
+                    AsyncImage(url: URL(string: detail.sprites.other?.officialArtwork?.front_default ?? "")) { image in
                         image.resizable().scaledToFit()
                     } placeholder: { ProgressView() }
                     .frame(height: 250)
