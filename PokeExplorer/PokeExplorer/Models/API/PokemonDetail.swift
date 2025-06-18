@@ -32,7 +32,7 @@ struct MoveElement: Codable, Hashable {
 
 struct Sprites: Codable {
     // A API usa "snake_case". O decoder cuidará da conversão.
-    let front_default: String
+    let front_default: String? // Corrigido para opcional
     let other: OtherSprites?
 }
 
