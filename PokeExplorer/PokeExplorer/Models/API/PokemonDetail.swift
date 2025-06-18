@@ -49,7 +49,7 @@ struct OfficialArtwork: Codable {
 }
 
 struct StatElement: Codable, Hashable {
-    let base_stat: Int
+    let base_stat: Int? // Corrigido para opcional
     let stat: Species
 }
 
