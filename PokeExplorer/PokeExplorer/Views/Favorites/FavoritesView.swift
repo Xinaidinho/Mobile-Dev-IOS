@@ -1,14 +1,12 @@
 import SwiftUI
 import SwiftData
 
-// Passo 1: Criamos uma nova View auxiliar para representar um único item da grade.
-// Isso simplifica drasticamente a View principal.
+// A View auxiliar 'FavoriteGridItemView' não precisa de alterações.
 struct FavoriteGridItemView: View {
     let favorite: FavoritePokemon
 
     var body: some View {
         VStack {
-            // Usamos os Design Tokens para manter a consistência
             AsyncImage(url: URL(string: favorite.imageUrl ?? "")) { image in
                 image
                     .resizable()
@@ -33,8 +31,16 @@ struct FavoriteGridItemView: View {
 
 struct FavoritesView: View {
     @Query private var favorites: [FavoritePokemon]
+    let user: User
+    
+    // 1. Obtenha o ModelContainer do ambiente para poder passá-lo para o ViewModel de detalhes.
+    @Environment(\.modelContext.container) private var modelContainer
+    
+    // 2. Adicione um Namespace para a animação de transição, assim como na outra tela.
+    @Namespace private var animationNamespace
     
     init(user: User) {
+        self.user = user
         let userID = user.username
         _favorites = Query(filter: #Predicate { $0.user?.username == userID }, sort: \.favoritedDate, order: .reverse)
     }
@@ -42,19 +48,31 @@ struct FavoritesView: View {
     let columns = [GridItem(.adaptive(minimum: 120))]
 
     var body: some View {
-        // O ScrollView e o navigationTitle continuam aqui
         ScrollView {
-            // A lógica do if/else para o caso de a lista estar vazia
             if favorites.isEmpty {
                 Text("Você ainda não tem Pokémon favoritos.")
                     .foregroundColor(.gray)
                     .padding()
             } else {
-                // A LazyVGrid agora chama a nossa View auxiliar.
-                // O compilador consegue analisar isso facilmente.
                 LazyVGrid(columns: columns, spacing: AppSpacing.medium) {
                     ForEach(favorites) { favorite in
-                        FavoriteGridItemView(favorite: favorite)
+                        // 3. Envolva o item do grid em um NavigationLink.
+                        NavigationLink(destination:
+                            // A tela de destino é a mesma PokemonDetailView.
+                            PokemonDetailView(
+                                viewModel: PokemonDetailViewModel(
+                                    // 4. Construímos a URL necessária a partir do ID salvo no favorito.
+                                    pokemonURL: "https://pokeapi.co/api/v2/pokemon/\(favorite.pokemonID)/",
+                                    user: user,
+                                    modelContainer: modelContainer
+                                ),
+                                namespace: animationNamespace
+                            )
+                        ) {
+                            FavoriteGridItemView(favorite: favorite)
+                        }
+                        // Estilo para garantir que o link não mude a cor do texto dentro do card.
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding()
