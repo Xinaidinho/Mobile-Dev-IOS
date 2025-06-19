@@ -1,50 +1,54 @@
-import SwiftUI
+import Foundation
 
 @MainActor
 class PokemonListViewModel: ObservableObject {
-    @Published var pokemons: [Pokemon] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    
-    private var apiService = APIService()
-    private var currentPage = 0
-    private let limit = 20
+    @Published private(set) var pokemons: [Pokemon] = []
+    @Published private(set) var isLoading = false
+    @Published private(set) var errorMessage: String?
+
+    private let api = APIService.shared
+    private let limit: Int
+    private var offset = 0
     private var canLoadMore = true
-    
-    // NOVA FUNÇÃO: Dispara a carga inicial dos dados.
-    func fetchInitialPokemons() {
-        // Garante que a chamada inicial não seja feita múltiplas vezes.
-        guard pokemons.isEmpty else { return }
-        loadMorePokemons()
+
+    init(limit: Int = 20) {
+        self.limit = limit
     }
-    
-    // Função para paginação, chamada quando o usuário rola a tela.
-    func loadMorePokemonsIfNeeded(currentPokemon: Pokemon?) {
-        guard let currentPokemon = currentPokemon else { return }
-        
-        let thresholdIndex = pokemons.index(pokemons.endIndex, offsetBy: -5)
-        if pokemons.firstIndex(where: { $0.id == currentPokemon.id }) == thresholdIndex {
-            loadMorePokemons()
-        }
+
+    func fetchInitialPokemons() async {
+        offset = 0
+        canLoadMore = true
+        pokemons = []
+        errorMessage = nil
+        await loadMorePokemons()
     }
-    
-    private func loadMorePokemons() {
+
+    func loadMorePokemons() async {
         guard !isLoading, canLoadMore else { return }
         isLoading = true
-        
-        Task {
-            do {
-                let offset = currentPage * limit
-                let response = try await apiService.fetchPokemonList(limit: limit, offset: offset)
-                
-                pokemons.append(contentsOf: response.results)
-                currentPage += 1
-                canLoadMore = !response.results.isEmpty
-                
-            } catch {
-                self.errorMessage = "Falha ao carregar Pokémon: \(error.localizedDescription)"
-            }
-            isLoading = false
+        defer { isLoading = false }
+
+        do {
+            let resp = try await api.fetchPokemonList(limit: limit, offset: offset)
+            pokemons.append(contentsOf: resp.results)
+            offset += resp.results.count
+            canLoadMore = !resp.results.isEmpty
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func fetchAllPokemons() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let resp = try await api.fetchPokemonList(limit: 100_000, offset: 0)
+            pokemons = resp.results
+            canLoadMore = false
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }
