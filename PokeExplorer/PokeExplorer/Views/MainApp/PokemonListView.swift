@@ -3,36 +3,68 @@ import SwiftUI
 struct PokemonListView: View {
     @StateObject private var viewModel = PokemonListViewModel()
     @Namespace private var animationNamespace
+    // Obtenha o ModelContainer em vez do ModelContext
+    @Environment(\.modelContext.container) private var modelContainer
     let user: User
-    
-    let columns = [GridItem(.adaptive(minimum: 120))]
+
+    private let columns = [ GridItem(.adaptive(minimum: 120), spacing: 16) ]
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: AppSpacing.medium) {
-                ForEach(viewModel.pokemons) { pokemon in
-                    NavigationLink(destination: PokemonDetailView(pokemonURL: pokemon.url, user: user, namespace: animationNamespace)) {
-                        PokemonGridItemView(pokemon: pokemon, animationNamespace: animationNamespace)
-                            // Este .onAppear continua aqui para a paginação
-                            .onAppear {
-                                viewModel.loadMorePokemonsIfNeeded(currentPokemon: pokemon)
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(viewModel.pokemons) { pokemon in
+                        NavigationLink(
+                            destination: PokemonDetailView(
+                                viewModel: PokemonDetailViewModel(
+                                    pokemonURL: pokemon.url,
+                                    user: user,
+                                    // Passe o container para o init do ViewModel
+                                    modelContainer: modelContainer
+                                ),
+                                namespace: animationNamespace
+                            )
+                        ) {
+                            VStack {
+                                Text(pokemon.name.capitalized)
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                    .multilineTextAlignment(.center)
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color(.secondarySystemBackground))
+                                    .cornerRadius(8)
                             }
+                        }
+                        .onAppear {
+                            if pokemon == viewModel.pokemons.last {
+                                Task { await viewModel.loadMorePokemons() }
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+
+                if viewModel.isLoading {
+                    ProgressView()
+                        .padding()
+                }
+
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .padding()
                 }
             }
-            .padding()
-            .animation(.default, value: viewModel.pokemons)
-
-            if viewModel.isLoading {
-                ProgressView().padding()
+            .navigationTitle("Explorar")
+            .toolbar {
+                Button("Tudo") {
+                    Task { await viewModel.fetchAllPokemons() }
+                }
             }
-        }
-        .navigationTitle("PokéExplorer")
-        // ADICIONE ESTE MODIFICADOR:
-        // Dispara a busca de dados assim que a tela aparece.
-        .onAppear {
-            viewModel.fetchInitialPokemons()
+            .task {
+                await viewModel.fetchInitialPokemons()
+            }
         }
     }
 }

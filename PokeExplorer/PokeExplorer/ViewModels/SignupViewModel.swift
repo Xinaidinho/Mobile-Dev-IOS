@@ -11,13 +11,12 @@ class SignupViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var didSignUpSuccessfully = false
     
-    // O init agora é vazio e padrão.
     init() {}
     
-    // A função signUp AGORA RECEBE o modelContext como parâmetro.
-    func signUp(context: ModelContext) {
-        // A persistenceService é criada aqui, apenas quando necessária.
-        let persistenceService = PersistenceService(modelContext: context)
+    // 1. A função signUp agora recebe o ModelContainer
+    func signUp(modelContainer: ModelContainer) {
+        // Cria o serviço com o container recebido
+        let persistenceService = PersistenceService(modelContainer: modelContainer)
         
         guard password == confirmPassword else {
             errorMessage = "As senhas não coincidem."
@@ -32,9 +31,10 @@ class SignupViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        // 2. A chamada assíncrona ao serviço de cadastro está dentro de uma Task
+        Task {
             do {
-                try persistenceService.signUp(username: self.username, email: self.email, password: self.password)
+                try await persistenceService.signUp(username: self.username, email: self.email, password: self.password)
                 self.didSignUpSuccessfully = true
             } catch {
                 self.errorMessage = (error as? LocalizedError)?.errorDescription ?? "Ocorreu um erro desconhecido."

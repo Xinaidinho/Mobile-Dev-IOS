@@ -2,11 +2,10 @@ import SwiftUI
 import SwiftData
 
 struct SignupView: View {
-    // 1. O ViewModel é criado da forma mais simples possível. Sem init customizado!
     @StateObject private var viewModel = SignupViewModel()
     
-    // 2. A View continua pegando o contexto e o dismiss do ambiente.
-    @Environment(\.modelContext) private var modelContext
+    // 1. Obtenha o ModelContainer do ambiente
+    @Environment(\.modelContext.container) private var modelContainer
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -30,9 +29,9 @@ struct SignupView: View {
             if viewModel.isLoading {
                 ProgressView()
             } else {
-                // 3. O botão agora chama a função passando o modelContext.
+                // 2. Passe o modelContainer ao chamar a função signUp
                 Button("Cadastrar") {
-                    viewModel.signUp(context: modelContext)
+                    viewModel.signUp(modelContainer: modelContainer)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(AppColors.primaryRed)
@@ -40,7 +39,6 @@ struct SignupView: View {
         }
         .padding()
         .navigationTitle("Criar Conta")
-        // 4. O .onAppear foi REMOVIDO pois não é mais necessário.
         .alert("Sucesso!", isPresented: $viewModel.didSignUpSuccessfully) {
             Button("OK", role: .cancel) { dismiss() }
         } message: {
