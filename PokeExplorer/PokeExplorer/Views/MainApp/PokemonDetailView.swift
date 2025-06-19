@@ -2,16 +2,11 @@ import SwiftUI
 import SwiftData
 
 struct PokemonDetailView: View {
-    @StateObject private var viewModel: PokemonDetailViewModel
-    @Environment(\.modelContext) private var context
-    let user: User
+    @ObservedObject var viewModel: PokemonDetailViewModel
     let namespace: Namespace.ID
-
-    init(pokemonURL: String, user: User, namespace: Namespace.ID) {
-        self.user = user
-        self.namespace = namespace
-        _viewModel = StateObject(wrappedValue: PokemonDetailViewModel(pokemonURL: pokemonURL))
-    }
+    
+    // 1. Adicione esta variável de estado para ser nosso gatilho.
+    @State private var favoritingTrigger = false
 
     var body: some View {
         Group {
@@ -41,13 +36,17 @@ struct PokemonDetailView: View {
             }
         }
         .navigationTitle(viewModel.detail?.name.capitalized ?? "Carregando…")
-        .task {
-            await viewModel.checkIfFavorited(by: user, in: context)
+        // 2. Adicione este modificador. Ele cria uma tarefa segura que será
+        //    cancelada automaticamente quando a view desaparecer.
+        .task(id: favoritingTrigger) {
+            // A tarefa só roda quando o gatilho muda de false para true.
+            if favoritingTrigger {
+                await viewModel.toggleFavorite()
+            }
         }
     }
 
-    // MARK: - Subviews
-
+    // ... (funções artworkView, typesView, sizeView permanecem iguais) ...
     private func artworkView(for detail: PokemonDetail) -> some View {
         let url = URL(string: detail.sprites.other?.officialArtwork.frontDefault ?? "")
         return AsyncImage(url: url) { phase in
@@ -94,9 +93,8 @@ struct PokemonDetailView: View {
 
     private func favoriteButton(for detail: PokemonDetail) -> some View {
         Button {
-            Task {
-                await viewModel.toggleFavorite(for: detail, user: user, in: context)
-            }
+            // 3. A ação do botão agora apenas ativa o gatilho.
+            favoritingTrigger.toggle()
         } label: {
             Label(
                 viewModel.isFavorited ? "Remover dos Favoritos" : "Adicionar aos Favoritos",
@@ -109,17 +107,5 @@ struct PokemonDetailView: View {
             .foregroundColor(.white)
             .cornerRadius(AppCornerRadius.medium)
         }
-    }
-}
-
-struct PokemonDetailView_Previews: PreviewProvider {
-    @Namespace static var ns
-
-    static var previews: some View {
-        PokemonDetailView(
-            pokemonURL: "https://pokeapi.co/api/v2/pokemon/1/",
-            user: User(username: "preview", email: "x@x.com", passwordHash: "hash"),
-            namespace: ns
-        )
     }
 }

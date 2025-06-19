@@ -3,25 +3,26 @@ import SwiftData
 
 @main
 struct PokeExplorerApp: App {
-    // Cria o ViewModel principal uma única vez aqui
     @StateObject private var loginViewModel: LoginViewModel
+    private let modelContainer: ModelContainer
     
     init() {
-        // Configura o container de dados
-        let container = try! ModelContainer(for: User.self, FavoritePokemon.self)
-        // Cria uma instância do contexto para injetar no ViewModel
-        let modelContext = ModelContext(container)
-        // Inicializa o StateObject com suas dependências
-        _loginViewModel = StateObject(wrappedValue: LoginViewModel(modelContext: modelContext))
+        do {
+            let container = try ModelContainer(for: User.self, FavoritePokemon.self)
+            self.modelContainer = container
+            // Passa o ModelContainer para o init do LoginViewModel
+            _loginViewModel = StateObject(wrappedValue: LoginViewModel(modelContainer: container))
+        } catch {
+            fatalError("Não foi possível inicializar o ModelContainer: \(error.localizedDescription)")
+        }
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                // Disponibiliza o ViewModel para todas as Views filhas
                 .environmentObject(loginViewModel)
         }
-        // Disponibiliza o ModelContainer para o @Query funcionar nas Views
-        .modelContainer(for: [User.self, FavoritePokemon.self])
+        // Injeta o container no ambiente para que outras views possam usá-lo
+        .modelContainer(modelContainer)
     }
 }

@@ -3,6 +3,8 @@ import SwiftUI
 struct PokemonListView: View {
     @StateObject private var viewModel = PokemonListViewModel()
     @Namespace private var animationNamespace
+    // Obtenha o ModelContainer em vez do ModelContext
+    @Environment(\.modelContext.container) private var modelContainer
     let user: User
 
     private let columns = [ GridItem(.adaptive(minimum: 120), spacing: 16) ]
@@ -14,14 +16,16 @@ struct PokemonListView: View {
                     ForEach(viewModel.pokemons) { pokemon in
                         NavigationLink(
                             destination: PokemonDetailView(
-                                pokemonURL: pokemon.url,
-                                user: user,
+                                viewModel: PokemonDetailViewModel(
+                                    pokemonURL: pokemon.url,
+                                    user: user,
+                                    // Passe o container para o init do ViewModel
+                                    modelContainer: modelContainer
+                                ),
                                 namespace: animationNamespace
                             )
                         ) {
                             VStack {
-                                // se você tiver uma imagem de sprite pequena,
-                                // pode trocar por AsyncImage aqui
                                 Text(pokemon.name.capitalized)
                                     .font(.headline)
                                     .foregroundColor(.primary)
@@ -33,7 +37,6 @@ struct PokemonListView: View {
                             }
                         }
                         .onAppear {
-                            // paginação: quando chegar no último item, carrega mais
                             if pokemon == viewModel.pokemons.last {
                                 Task { await viewModel.loadMorePokemons() }
                             }
@@ -63,12 +66,5 @@ struct PokemonListView: View {
                 await viewModel.fetchInitialPokemons()
             }
         }
-    }
-}
-
-struct PokemonListView_Previews: PreviewProvider {
-    static var previews: some View {
-        // use um usuário fictício aqui apenas para preview
-        PokemonListView(user: User(username: "preview", email: "x@x.com", passwordHash: "hash"))
     }
 }
