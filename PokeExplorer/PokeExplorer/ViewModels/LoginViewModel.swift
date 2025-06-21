@@ -9,18 +9,23 @@ class LoginViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var authenticatedUser: User?
     
-    private var persistenceService: PersistenceService
+    // MUDANÇA AQUI: A propriedade agora é do tipo do protocolo.
+    private var persistenceService: PersistenceServiceProtocol
     
-    // 1. O init agora recebe um ModelContainer
+    // O init do app continua funcionando como antes.
     init(modelContainer: ModelContainer) {
         self.persistenceService = PersistenceService(modelContainer: modelContainer)
+    }
+    
+    // MUDANÇA AQUI: Adicionamos um init para os testes.
+    init(persistenceService: PersistenceServiceProtocol) {
+        self.persistenceService = persistenceService
     }
     
     func login() {
         isLoading = true
         errorMessage = nil
         
-        // 2. A chamada assíncrona ao serviço de login agora está dentro de uma Task
         Task {
             do {
                 let user = try await self.persistenceService.login(username: self.username, password: self.password)

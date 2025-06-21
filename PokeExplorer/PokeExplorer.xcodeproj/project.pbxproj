@@ -89,8 +89,8 @@
 			isa = PBXGroup;
 			children = (
 				BEF42E602E01C38200611F7A /* PokeExplorer */,
-				BEF42E742E01C38300611F7A /* PokeExplorerTests */,
 				BEF42E7E2E01C38300611F7A /* PokeExplorerUITests */,
+				BEF42E742E01C38300611F7A /* PokeExplorerTests */,
 				BEF42E5F2E01C38200611F7A /* Products */,
 			);
 			sourceTree = "<group>";

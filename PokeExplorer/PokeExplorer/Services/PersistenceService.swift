@@ -22,7 +22,7 @@ enum PersistenceError: LocalizedError {
 }
 
 // O serviço não precisa mais ser @MainActor
-class PersistenceService {
+class PersistenceService: PersistenceServiceProtocol { // <-- MUDANÇA AQUI
     // 1. Armazene o ModelContainer, que é thread-safe.
     private let modelContainer: ModelContainer
 
