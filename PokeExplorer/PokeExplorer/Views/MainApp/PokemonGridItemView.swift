@@ -5,25 +5,37 @@ struct PokemonGridItemView: View {
     let animationNamespace: Namespace.ID
 
     var body: some View {
-        VStack {
-            AsyncImage(url: pokemon.officialArtworkURL) { image in
-                image
-                    .resizable()
-                    .scaledToFit()
-            } placeholder: {
-                ProgressView()
-                    .tint(AppColors.primaryRed)
+        VStack(spacing: AppSpacing.small) {
+            // aqui o AsyncImage com o spriteURL
+            AsyncImage(url: pokemon.spriteURL) { phase in
+                switch phase {
+                case .empty:
+                    ProgressView()
+                        .frame(width: 80, height: 80)
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 80, height: 80)
+                        .matchedGeometryEffect(id: pokemon.id, in: animationNamespace)
+                case .failure:
+                    Image(systemName: "questionmark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 80, height: 80)
+                        .foregroundColor(.gray)
+                @unknown default:
+                    EmptyView()
+                }
             }
-            .frame(width: 100, height: 100)
-            .matchedGeometryEffect(id: pokemon.name, in: animationNamespace) // Efeito da animação
 
             Text(pokemon.name.capitalized)
-                .font(AppFonts.headline)
+                .font(AppFonts.caption)
                 .foregroundColor(AppColors.primaryText)
+                .lineLimit(1)
         }
-        .padding(AppSpacing.small)
+        .padding()
         .background(AppColors.cardBackground)
-        .cornerRadius(AppCornerRadius.medium)
-        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .cornerRadius(AppCornerRadius.small)
     }
 }

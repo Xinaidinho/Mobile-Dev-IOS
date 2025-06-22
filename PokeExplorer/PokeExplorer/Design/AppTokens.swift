@@ -12,6 +12,7 @@ enum AppColors {
     static let cardBackground = Color("CardBackground")
     static let primaryText = Color("PrimaryText")
     static let secondaryText = Color("SecondaryText")
+    static let accent         = Color("AccentColor")
 }
 
 enum AppFonts {

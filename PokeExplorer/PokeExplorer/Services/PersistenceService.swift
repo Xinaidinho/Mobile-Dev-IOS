@@ -1,109 +1,125 @@
-//
-//  PersistenceService.swift
-//  PokeExplorer
-//
-//  Created by user276522 on 6/17/25.
-//
-
 import Foundation
 import SwiftData
 
-/// Define erros específicos para o serviço de persistência para um tratamento mais claro.
 enum PersistenceError: LocalizedError {
     case userNotFound
     case wrongPassword
     case userAlreadyExists
     case favoriteAlreadyExists
-    
+
     var errorDescription: String? {
         switch self {
-        case .userNotFound: "Usuário não encontrado."
-        case .wrongPassword: "Senha incorreta."
-        case .userAlreadyExists: "Este nome de usuário já está em uso."
-        case .favoriteAlreadyExists: "Este Pokémon já está nos seus favoritos."
+        case .userNotFound:
+            return "Usuário não encontrado."
+        case .wrongPassword:
+            return "Senha incorreta."
+        case .userAlreadyExists:
+            return "Este nome de usuário já está em uso."
+        case .favoriteAlreadyExists:
+            return "Este Pokémon já está nos seus favoritos."
         }
     }
 }
 
-@MainActor
-class PersistenceService {
-    
-    private var modelContext: ModelContext
-    
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+// O serviço não precisa mais ser @MainActor
+class PersistenceService: PersistenceServiceProtocol { // <-- MUDANÇA AQUI
+    // 1. Armazene o ModelContainer, que é thread-safe.
+    private let modelContainer: ModelContainer
+
+    init(modelContainer: ModelContainer) {
+        self.modelContainer = modelContainer
     }
+
+    // --- Métodos de Autenticação (agora são async) ---
     
-    // MARK: - User Authentication
-    
-    func signUp(username: String, email: String, password: String) throws {
-        // 1. Verifica se o usuário já existe
-        let descriptor = FetchDescriptor<User>(predicate: #Predicate { $0.username == username })
-        let existingUsers = try modelContext.fetch(descriptor)
+    func signUp(username: String, email: String, password: String) async throws {
+        // Crie um contexto em background para esta operação
+        let context = ModelContext(modelContainer)
         
+        let descriptor = FetchDescriptor<User>(predicate: #Predicate { $0.username == username })
+        let existingUsers = try context.fetch(descriptor)
+
         guard existingUsers.isEmpty else {
             throw PersistenceError.userAlreadyExists
         }
-        
-        // 2. Criptografa a senha
-        let passwordHash = try PasswordHasher.hash(password: password)
-        
-        // 3. Cria e salva o novo usuário
+
+        let passwordHash = PasswordHasher.hash(password)
         let newUser = User(username: username, email: email, passwordHash: passwordHash)
-        modelContext.insert(newUser)
-        try modelContext.save()
+        context.insert(newUser)
+        try context.save()
     }
-    
-    func login(username: String, password: String) throws -> User {
-        // 1. Busca o usuário pelo nome
-        let descriptor = FetchDescriptor<User>(predicate: #Predicate { $0.username == username })
-        let users = try modelContext.fetch(descriptor)
+
+    func login(username: String, password: String) async throws -> User {
+        // Crie um contexto em background para esta operação
+        let context = ModelContext(modelContainer)
         
-        guard let user = users.first else {
+        let descriptor = FetchDescriptor<User>(predicate: #Predicate { $0.username == username })
+        guard let user = try context.fetch(descriptor).first else {
             throw PersistenceError.userNotFound
         }
-        
-        // 2. Verifica a senha
-        guard PasswordHasher.verify(password: password, against: user.passwordHash) else {
+
+        guard PasswordHasher.verify(password, against: user.passwordHash) else {
             throw PersistenceError.wrongPassword
         }
-        
-        // 3. Retorna o usuário se tudo estiver correto
         return user
     }
-    
-    // MARK: - Favorites Management
-    
-    func addFavorite(pokemonDetail: PokemonDetail, for user: User) throws {
-        // 1. Verifica se o favorito já existe para este usuário
-        let pokemonID = pokemonDetail.id
-        if user.favoritePokemons.contains(where: { $0.pokemonID == pokemonID }) {
-            throw PersistenceError.favoriteAlreadyExists
+
+    // --- Métodos de Favoritos (agora são async) ---
+
+    func addFavorite(pokemonDetail: PokemonDetail, for user: User) async throws {
+        // Crie um contexto em background para esta operação de escrita
+        let context = ModelContext(modelContainer)
+
+        // Busque a instância do usuário *neste contexto específico* para criar a relação
+        let userID = user.username
+        let userDescriptor = FetchDescriptor<User>(predicate: #Predicate { $0.username == userID })
+        guard let userInContext = try context.fetch(userDescriptor).first else {
+            throw PersistenceError.userNotFound
         }
-        
-        // 2. Cria o novo favorito
+
         let newFavorite = FavoritePokemon(
             pokemonID: pokemonDetail.id,
             name: pokemonDetail.name,
-            imageUrl: pokemonDetail.sprites.other?.officialArtwork?.front_default
+            imageUrl: pokemonDetail.sprites.other?.officialArtwork.frontDefault
         )
         
-        // 3. Associa ao usuário e salva
-        newFavorite.user = user
-        modelContext.insert(newFavorite)
-        try modelContext.save()
+        newFavorite.user = userInContext
+        context.insert(newFavorite)
+        try context.save()
     }
-    
-    func removeFavorite(pokemonID: Int, from user: User) throws {
-        guard let favoriteToRemove = user.favoritePokemons.first(where: { $0.pokemonID == pokemonID }) else {
-            return // Se não encontrar, não faz nada
-        }
+
+    func removeFavorite(pokemonID: Int, from user: User) async throws {
+        // Crie um contexto em background para esta operação de escrita
+        let context = ModelContext(modelContainer)
         
-        modelContext.delete(favoriteToRemove)
-        try modelContext.save()
+        let userID = user.username
+        let predicate = #Predicate<FavoritePokemon> { favorite in
+            favorite.pokemonID == pokemonID && favorite.user?.username == userID
+        }
+        let descriptor = FetchDescriptor(predicate: predicate)
+        
+        if let favoriteToRemove = try context.fetch(descriptor).first {
+            context.delete(favoriteToRemove)
+            try context.save()
+        }
     }
-    
-    func isFavorite(pokemonID: Int, for user: User) -> Bool {
-        user.favoritePokemons.contains(where: { $0.pokemonID == pokemonID })
+
+    func isFavorite(pokemonID: Int, for user: User) async -> Bool {
+        // Crie um contexto em background para esta operação de leitura
+        let context = ModelContext(modelContainer)
+        
+        let userID = user.username
+        let predicate = #Predicate<FavoritePokemon> { favorite in
+            favorite.pokemonID == pokemonID && favorite.user?.username == userID
+        }
+        let descriptor = FetchDescriptor(predicate: predicate)
+        
+        do {
+            let count = try context.fetchCount(descriptor)
+            return count > 0
+        } catch {
+            print("Falha ao buscar o status de favorito: \(error)")
+            return false
+        }
     }
 }

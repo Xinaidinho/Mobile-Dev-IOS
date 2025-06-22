@@ -1,78 +1,67 @@
-import SwiftUI
+import Foundation
 import SwiftData
 
 @MainActor
 class PokemonDetailViewModel: ObservableObject {
-    @Published var pokemonDetail: PokemonDetail?
-    @Published var isFavorite = false
-    @Published var isLoading = true
-    @Published var errorMessage: String?
-    
-    private let pokemonURL: String
-    private let loggedInUser: User
-    private var persistenceService: PersistenceService? // Agora é opcional, inicializado no setup
-    private var apiService = APIService()
-    
-    // Init simplificado, não precisa mais do modelContext
-    init(pokemonURL: String, user: User) {
-        self.pokemonURL = pokemonURL
-        self.loggedInUser = user
+    @Published private(set) var detail: PokemonDetail?
+    @Published private(set) var isLoading = false
+    @Published private(set) var errorMessage: String?
+    @Published private(set) var isFavorited = false
+
+    private let api = APIService.shared
+    private let service: PersistenceService
+    private let user: User
+    private let urlString: String
+
+    // O init agora precisa do ModelContainer para criar o PersistenceService
+    init(pokemonURL: String, user: User, modelContainer: ModelContainer) {
+        self.urlString = pokemonURL
+        self.user = user
+        self.service = PersistenceService(modelContainer: modelContainer)
+        fetchDetail()
     }
     
-    // Função para configurar o serviço de persistência
-    func setup(modelContext: ModelContext) {
-        if self.persistenceService == nil {
-            self.persistenceService = PersistenceService(modelContext: modelContext)
-        }
-    }
-    
-    func fetchData() {
-        print("[DETAIL] ==> 1. Função fetchData() FOI CHAMADA para a URL: \(pokemonURL)")
-        isLoading = true
-        
+    private func fetchDetail() {
         Task {
+            isLoading = true
+            defer { isLoading = false }
             do {
-                let detail = try await apiService.fetchPokemonDetails(from: pokemonURL)
-                pokemonDetail = detail
-                checkIfFavorite()
-                print("[DETAIL] ==> 2. SUCESSO! Detalhes do Pokémon '\(detail.name)' carregados.")
-            } catch is CancellationError {
-                // Este erro acontece se o usuário navegar para trás antes de a tarefa terminar. É normal.
-                print("[DETAIL] ==> X. TAREFA CANCELADA. Isso é normal se a navegação foi rápida.")
+                detail = try await api.fetchPokemonDetail(from: urlString)
+                await checkIfFavorited()
             } catch {
-                // Se qualquer outro erro ocorrer, ele será impresso aqui.
-                print("[DETAIL] ==> X. ERRO INESPERADO ao buscar detalhes: \(error)")
-                self.errorMessage = "Não foi possível carregar os detalhes."
+                errorMessage = error.localizedDescription
             }
-            
-            isLoading = false
         }
     }
     
+    // A chamada do botão dispara esta função.
     func toggleFavorite() {
-        guard let persistenceService = persistenceService, let detail = pokemonDetail else {
-            print("[DETAIL] ==> ERRO: PersistenceService não foi inicializado para favoritar.")
-            return
-        }
-        
-        isFavorite.toggle()
-        
-        Task {
+        guard let detail = detail else { return }
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            
+            // Primeiro, checamos o status atual de forma assíncrona
+            let isCurrentlyFavorited = await self.service.isFavorite(pokemonID: detail.id, for: self.user)
+            
             do {
-                if isFavorite {
-                    try persistenceService.addFavorite(pokemonDetail: detail, for: loggedInUser)
+                if isCurrentlyFavorited {
+                    try await self.service.removeFavorite(pokemonID: detail.id, from: self.user)
+                    // Atualiza a UI na thread principal
+                    await MainActor.run { self.isFavorited = false }
                 } else {
-                    try persistenceService.removeFavorite(pokemonID: detail.id, from: loggedInUser)
+                    try await self.service.addFavorite(pokemonDetail: detail, for: self.user)
+                    // Atualiza a UI na thread principal
+                    await MainActor.run { self.isFavorited = true }
                 }
             } catch {
-                isFavorite.toggle()
-                errorMessage = (error as? LocalizedError)?.errorDescription ?? "Erro ao atualizar favoritos."
+                await MainActor.run { self.errorMessage = error.localizedDescription }
             }
         }
     }
     
-    private func checkIfFavorite() {
-        guard let persistenceService = persistenceService, let pokemonDetail = pokemonDetail else { return }
-        self.isFavorite = persistenceService.isFavorite(pokemonID: pokemonDetail.id, for: loggedInUser)
+    private func checkIfFavorited() async {
+        guard let detail = detail else { return }
+        self.isFavorited = await service.isFavorite(pokemonID: detail.id, for: user)
     }
 }
