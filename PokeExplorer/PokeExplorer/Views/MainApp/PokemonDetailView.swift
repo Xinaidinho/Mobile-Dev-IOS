@@ -5,7 +5,6 @@ struct PokemonDetailView: View {
     @ObservedObject var viewModel: PokemonDetailViewModel
     let namespace: Namespace.ID
     
-    // 1. Adicione esta variável de estado para ser nosso gatilho.
     @State private var favoritingTrigger = false
 
     var body: some View {
@@ -17,6 +16,7 @@ struct PokemonDetailView: View {
             } else if let detail = viewModel.detail {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                        // A chamada da função permanece a mesma
                         artworkView(for: detail)
                         Text(detail.name.capitalized)
                             .font(AppFonts.title)
@@ -36,38 +36,25 @@ struct PokemonDetailView: View {
             }
         }
         .navigationTitle(viewModel.detail?.name.capitalized ?? "Carregando…")
-        // 2. Adicione este modificador. Ele cria uma tarefa segura que será
-        //    cancelada automaticamente quando a view desaparecer.
         .task(id: favoritingTrigger) {
-            // A tarefa só roda quando o gatilho muda de false para true.
             if favoritingTrigger {
-                await viewModel.toggleFavorite()
+                // A ação de favoritar não foi alterada
+                viewModel.toggleFavorite()
             }
         }
     }
 
-    // ... (funções artworkView, typesView, sizeView permanecem iguais) ...
+    // A função artworkView foi atualizada para o carregamento manual
     private func artworkView(for detail: PokemonDetail) -> some View {
         let url = URL(string: detail.sprites.other?.officialArtwork.frontDefault ?? "")
-        return AsyncImage(url: url) { phase in
-            switch phase {
-            case .empty:
-                ProgressView().scaleEffect(1.5).padding()
-            case .success(let img):
-                img.resizable()
-                    .scaledToFit()
-                    .matchedGeometryEffect(id: detail.id, in: namespace)
-            case .failure:
-                Image(systemName: "photo")
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundColor(.gray)
-            @unknown default:
-                EmptyView()
-            }
-        }
+        
+        // Novo componente para carregamento de imagem com User-Agent
+        CustomAsyncImageView(url: url)
+            .scaledToFit()
+            .matchedGeometryEffect(id: detail.id, in: namespace)
     }
 
+    // ... (o restante do arquivo, como typesView, sizeView, favoriteButton, permanece o mesmo) ...
     private func typesView(for detail: PokemonDetail) -> some View {
         HStack {
             ForEach(detail.types, id: \.slot) { entry in
@@ -84,8 +71,8 @@ struct PokemonDetailView: View {
 
     private func sizeView(for detail: PokemonDetail) -> some View {
         HStack(spacing: AppSpacing.medium) {
-            Text("Altura: \(detail.height)")
-            Text("Peso: \(detail.weight)")
+            Text("Altura: \(String(format: "%.1f", Float(detail.height) / 10)) m")
+            Text("Peso: \(String(format: "%.1f", Float(detail.weight) / 10)) kg")
         }
         .font(AppFonts.body)
         .foregroundColor(AppColors.secondaryText)
@@ -93,7 +80,6 @@ struct PokemonDetailView: View {
 
     private func favoriteButton(for detail: PokemonDetail) -> some View {
         Button {
-            // 3. A ação do botão agora apenas ativa o gatilho.
             favoritingTrigger.toggle()
         } label: {
             Label(
@@ -106,6 +92,43 @@ struct PokemonDetailView: View {
             .background(AppColors.primaryRed)
             .foregroundColor(.white)
             .cornerRadius(AppCornerRadius.medium)
+        }
+    }
+}
+
+// View auxiliar para carregar a imagem com cabeçalho customizado
+struct CustomAsyncImageView: View {
+    let url: URL?
+    @State private var image: Image?
+
+    var body: some View {
+        Group {
+            if let image {
+                image
+                    .resizable()
+            } else {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .frame(maxWidth: .infinity, idealHeight: 300)
+            }
+        }
+        .task {
+            await loadImage()
+        }
+    }
+    
+    private func loadImage() async {
+        guard let url else { return }
+        var request = URLRequest(url: url)
+        request.setValue("PokeExplorerApp", forHTTPHeaderField: "User-Agent")
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            if let uiImage = UIImage(data: data) {
+                self.image = Image(uiImage: uiImage)
+            }
+        } catch {
+            print("Falha ao carregar a imagem detalhada: \(error.localizedDescription)")
         }
     }
 }

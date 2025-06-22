@@ -3,30 +3,23 @@ import SwiftUI
 struct PokemonGridItemView: View {
     let pokemon: Pokemon
     let animationNamespace: Namespace.ID
-
+    
+    // Estado para armazenar a imagem carregada
+    @State private var image: Image?
+    
     var body: some View {
         VStack(spacing: AppSpacing.small) {
-            // aqui o AsyncImage com o spriteURL
-            AsyncImage(url: pokemon.spriteURL) { phase in
-                switch phase {
-                case .empty:
-                    ProgressView()
-                        .frame(width: 80, height: 80)
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .matchedGeometryEffect(id: pokemon.id, in: animationNamespace)
-                case .failure:
-                    Image(systemName: "questionmark")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .foregroundColor(.gray)
-                @unknown default:
-                    EmptyView()
-                }
+            // Lógica de exibição da imagem
+            if let image {
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 80, height: 80)
+                    .matchedGeometryEffect(id: pokemon.id, in: animationNamespace)
+            } else {
+                // Placeholder enquanto a imagem carrega ou em caso de falha
+                ProgressView()
+                    .frame(width: 80, height: 80)
             }
 
             Text(pokemon.name.capitalized)
@@ -37,5 +30,26 @@ struct PokemonGridItemView: View {
         .padding()
         .background(AppColors.cardBackground)
         .cornerRadius(AppCornerRadius.small)
+        // Task para carregar a imagem quando a view aparecer
+        .task {
+            await loadImage()
+        }
+    }
+    
+    private func loadImage() async {
+        guard let url = pokemon.spriteURL else { return }
+        
+        var request = URLRequest(url: url)
+        // Adiciona o cabeçalho User-Agent obrigatório
+        request.setValue("PokeExplorerApp", forHTTPHeaderField: "User-Agent")
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            if let uiImage = UIImage(data: data) {
+                self.image = Image(uiImage: uiImage)
+            }
+        } catch {
+            print("Falha ao carregar a imagem para \(pokemon.name): \(error.localizedDescription)")
+        }
     }
 }
