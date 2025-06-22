@@ -4,8 +4,8 @@ import SwiftData
 struct PokemonDetailView: View {
     @ObservedObject var viewModel: PokemonDetailViewModel
     let namespace: Namespace.ID
+    let pokemon: Pokemon
     
-    // 1. Adicione esta variável de estado para ser nosso gatilho.
     @State private var favoritingTrigger = false
 
     var body: some View {
@@ -17,7 +17,7 @@ struct PokemonDetailView: View {
             } else if let detail = viewModel.detail {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                        artworkView(for: detail)
+                        artworkView()
                         Text(detail.name.capitalized)
                             .font(AppFonts.title)
                             .foregroundColor(AppColors.primaryText)
@@ -36,36 +36,55 @@ struct PokemonDetailView: View {
             }
         }
         .navigationTitle(viewModel.detail?.name.capitalized ?? "Carregando…")
-        // 2. Adicione este modificador. Ele cria uma tarefa segura que será
-        //    cancelada automaticamente quando a view desaparecer.
         .task(id: favoritingTrigger) {
-            // A tarefa só roda quando o gatilho muda de false para true.
             if favoritingTrigger {
-                await viewModel.toggleFavorite()
+                viewModel.toggleFavorite()
             }
         }
     }
 
-    // ... (funções artworkView, typesView, sizeView permanecem iguais) ...
-    private func artworkView(for detail: PokemonDetail) -> some View {
-        let url = URL(string: detail.sprites.other?.officialArtwork.frontDefault ?? "")
-        return AsyncImage(url: url) { phase in
+    // MARK: – Usa a URL do model Pokemon, não o JSON de detail
+    private func artworkView() -> some View {
+        AsyncImage(url: pokemon.officialArtworkURL) { phase in
             switch phase {
             case .empty:
-                ProgressView().scaleEffect(1.5).padding()
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .padding()
             case .success(let img):
-                img.resizable()
-                    .scaledToFit()
-                    .matchedGeometryEffect(id: detail.id, in: namespace)
-            case .failure:
-                Image(systemName: "photo")
+                img
                     .resizable()
                     .scaledToFit()
-                    .foregroundColor(.gray)
+                    .matchedGeometryEffect(id: pokemon.id, in: namespace)
+            case .failure:
+                // fallback para o sprite pequeno, se quiser:
+                if let sprite = pokemon.spriteURL {
+                    AsyncImage(url: sprite) { inner in
+                        if let image = try? inner.image {
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .matchedGeometryEffect(id: pokemon.id, in: namespace)
+                        } else {
+                            placeholderImage()
+                        }
+                    }
+                } else {
+                    placeholderImage()
+                }
             @unknown default:
                 EmptyView()
             }
         }
+        .frame(maxWidth: .infinity)
+    }
+    
+    private func placeholderImage() -> some View {
+        Image(systemName: "photo")
+            .resizable()
+            .scaledToFit()
+            .foregroundColor(.gray)
+            .frame(width: 100, height: 100)
     }
 
     private func typesView(for detail: PokemonDetail) -> some View {
@@ -93,7 +112,6 @@ struct PokemonDetailView: View {
 
     private func favoriteButton(for detail: PokemonDetail) -> some View {
         Button {
-            // 3. A ação do botão agora apenas ativa o gatilho.
             favoritingTrigger.toggle()
         } label: {
             Label(
