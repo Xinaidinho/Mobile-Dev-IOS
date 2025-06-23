@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bucket
+   uuid = "F47A834B-9F17-4509-A711-39EA06F7679D"
+   type = "1"
+   version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "5306A25F-A86D-45F3-ADBB-318D0D881E0F"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PokeExplorer/Models/API/Pokemon.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "22"
+            endingLineNumber = "22"
+            landmarkName = "officialArtworkURL"
+            landmarkType = "24">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "A7F5620F-3F5A-47BB-9B10-5B8EB0541F75"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PokeExplorer/Views/MainApp/PokemonDetailView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "8"
+            endingLineNumber = "8"
+            landmarkName = "PokemonDetailView"
+            landmarkType = "14">
+            <Locations>
+               <Location
+                  uuid = "A7F5620F-3F5A-47BB-9B10-5B8EB0541F75 - fe4c60161c3ca02a"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "property wrapper backing initializer of PokeExplorer.PokemonDetailView.favoritingTrigger : Swift.Bool"
+                  moduleName = "PokeExplorer.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/berdegeus/Desenvolvimento%20IOS/Mobile-Dev-IOS/PokeExplorer/PokeExplorer/Views/MainApp/PokemonDetailView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "0"
+                  endingLineNumber = "0">
+               </Location>
+               <Location
+                  uuid = "A7F5620F-3F5A-47BB-9B10-5B8EB0541F75 - db3a57eaeffc709c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "PokeExplorer.PokemonDetailView.init(viewModel: PokeExplorer.PokemonDetailViewModel, namespace: SwiftUI.Namespace.ID, pokemon: PokeExplorer.Pokemon) -&gt; PokeExplorer.PokemonDetailView"
+                  moduleName = "PokeExplorer.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/berdegeus/Desenvolvimento%20IOS/Mobile-Dev-IOS/PokeExplorer/PokeExplorer/Views/MainApp/PokemonDetailView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "9"
+                  endingLineNumber = "9">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
+</Bucket>

@@ -1,55 +1,11 @@
 import SwiftUI
 import SwiftData
 
-// 1. Crie uma View auxiliar dedicada para a arte do Pokémon.
-//    Isso encapsula a lógica de carregamento e evita o erro de compilação.
-struct ArtworkView: View {
-    let url: URL?
-    let pokemonId: Int
-    let animationNamespace: Namespace.ID
-
-    @State private var image: Image?
-
-    var body: some View {
-        Group {
-            if let image {
-                image
-                    .resizable()
-                    .scaledToFit()
-                    .matchedGeometryEffect(id: pokemonId, in: animationNamespace)
-            } else {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .frame(maxWidth: .infinity, minHeight: 300) // Frame para evitar que a view colapse
-            }
-        }
-        .task {
-            await loadImage()
-        }
-    }
-
-    private func loadImage() async {
-        guard let url else { return }
-        var request = URLRequest(url: url)
-        // Adiciona o cabeçalho User-Agent para a requisição da imagem
-        request.setValue("PokeExplorerApp/1.0", forHTTPHeaderField: "User-Agent")
-
-        do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            if let uiImage = UIImage(data: data) {
-                self.image = Image(uiImage: uiImage)
-            }
-        } catch {
-            print("Falha ao carregar a artwork para o Pokémon ID \(pokemonId): \(error)")
-        }
-    }
-}
-
-
 struct PokemonDetailView: View {
     @ObservedObject var viewModel: PokemonDetailViewModel
     let namespace: Namespace.ID
-
+    let pokemon: Pokemon
+    
     @State private var favoritingTrigger = false
 
     var body: some View {
@@ -61,13 +17,7 @@ struct PokemonDetailView: View {
             } else if let detail = viewModel.detail {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                        // 2. Use a nova ArtworkView aqui.
-                        ArtworkView(
-                            url: URL(string: detail.sprites.other?.officialArtwork.frontDefault ?? ""),
-                            pokemonId: detail.id,
-                            animationNamespace: namespace
-                        )
-                        
+                        artworkView()
                         Text(detail.name.capitalized)
                             .font(AppFonts.title)
                             .foregroundColor(AppColors.primaryText)
@@ -88,14 +38,54 @@ struct PokemonDetailView: View {
         .navigationTitle(viewModel.detail?.name.capitalized ?? "Carregando…")
         .task(id: favoritingTrigger) {
             if favoritingTrigger {
-                // 3. CORREÇÃO: A função toggleFavorite() não é async,
-                //    então o 'await' deve ser removido para evitar um erro de compilação.
                 viewModel.toggleFavorite()
             }
         }
     }
 
-    // A função artworkView(for:) foi removida e substituída pela struct ArtworkView.
+    // MARK: – Usa a URL do model Pokemon, não o JSON de detail
+    private func artworkView() -> some View {
+        AsyncImage(url: pokemon.officialArtworkURL) { phase in
+            switch phase {
+            case .empty:
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .padding()
+            case .success(let img):
+                img
+                    .resizable()
+                    .scaledToFit()
+                    .matchedGeometryEffect(id: pokemon.id, in: namespace)
+            case .failure:
+                // fallback para o sprite pequeno, se quiser:
+                if let sprite = pokemon.spriteURL {
+                    AsyncImage(url: sprite) { inner in
+                        if let image = try? inner.image {
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .matchedGeometryEffect(id: pokemon.id, in: namespace)
+                        } else {
+                            placeholderImage()
+                        }
+                    }
+                } else {
+                    placeholderImage()
+                }
+            @unknown default:
+                EmptyView()
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+    
+    private func placeholderImage() -> some View {
+        Image(systemName: "photo")
+            .resizable()
+            .scaledToFit()
+            .foregroundColor(.gray)
+            .frame(width: 100, height: 100)
+    }
 
     private func typesView(for detail: PokemonDetail) -> some View {
         HStack {
@@ -113,9 +103,8 @@ struct PokemonDetailView: View {
 
     private func sizeView(for detail: PokemonDetail) -> some View {
         HStack(spacing: AppSpacing.medium) {
-            // Corrigindo a formatação de altura e peso para metros e kg
-            Text("Altura: \(String(format: "%.1f m", Float(detail.height) / 10.0))")
-            Text("Peso: \(String(format: "%.1f kg", Float(detail.weight) / 10.0))")
+            Text("Altura: \(detail.height)")
+            Text("Peso: \(detail.weight)")
         }
         .font(AppFonts.body)
         .foregroundColor(AppColors.secondaryText)

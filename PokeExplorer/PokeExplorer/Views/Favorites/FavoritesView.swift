@@ -5,18 +5,36 @@ import SwiftData
 struct FavoriteGridItemView: View {
     let favorite: FavoritePokemon
 
+    /// Monta a URL exata do sprite 2D oficial
+    private var spriteURL: URL? {
+        URL(string:
+            "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/\(favorite.pokemonID).png"
+        )
+    }
+
     var body: some View {
         VStack {
-            AsyncImage(url: URL(string: favorite.imageUrl ?? "")) { image in
-                image
-                    .resizable()
-                    .scaledToFit()
-            } placeholder: {
-                ProgressView()
-                    .tint(AppColors.primaryRed)
+            AsyncImage(url: spriteURL) { phase in
+                switch phase {
+                case .empty:
+                    ProgressView()
+                        .tint(AppColors.primaryRed)
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                case .failure:
+                    // fallback genérico
+                    Image(systemName: "photo")
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundColor(.gray)
+                @unknown default:
+                    EmptyView()
+                }
             }
             .frame(width: 100, height: 100)
-            
+
             Text(favorite.name.capitalized)
                 .font(AppFonts.headline)
                 .foregroundColor(AppColors.primaryText)
@@ -27,6 +45,7 @@ struct FavoriteGridItemView: View {
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
 }
+
 
 
 struct FavoritesView: View {
@@ -58,20 +77,22 @@ struct FavoritesView: View {
                     ForEach(favorites) { favorite in
                         // 3. Envolva o item do grid em um NavigationLink.
                         NavigationLink(destination:
-                            // A tela de destino é a mesma PokemonDetailView.
                             PokemonDetailView(
                                 viewModel: PokemonDetailViewModel(
-                                    // 4. Construímos a URL necessária a partir do ID salvo no favorito.
                                     pokemonURL: "https://pokeapi.co/api/v2/pokemon/\(favorite.pokemonID)/",
                                     user: user,
                                     modelContainer: modelContainer
                                 ),
-                                namespace: animationNamespace
+                                namespace: animationNamespace,
+                                // 🚀 Aqui criamos o model Pokemon pra reaproveitar spriteURL e officialArtworkURL
+                                pokemon: Pokemon(
+                                    name: favorite.name,
+                                    url: "https://pokeapi.co/api/v2/pokemon/\(favorite.pokemonID)/"
+                                )
                             )
                         ) {
                             FavoriteGridItemView(favorite: favorite)
                         }
-                        // Estilo para garantir que o link não mude a cor do texto dentro do card.
                         .buttonStyle(.plain)
                     }
                 }
