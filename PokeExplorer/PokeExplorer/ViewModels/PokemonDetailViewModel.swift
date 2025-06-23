@@ -1,21 +1,28 @@
+// Importa os frameworks necessários para manipulação de dados e concorrência
 import Foundation
 import SwiftData
 
+// ViewModel responsável pela lógica da tela de detalhes do Pokémon
 @MainActor
 class PokemonDetailViewModel: ObservableObject {
+    // Detalhes do Pokémon buscados na API
     @Published private(set) var detail: PokemonDetail?
+    // Indica se está carregando dados
     @Published private(set) var isLoading = false
+    // Mensagem de erro, se houver
     @Published private(set) var errorMessage: String?
+    // Indica se o Pokémon está favoritado pelo usuário
     @Published private(set) var isFavorited = false
 
-    // MUDANÇA 1: As propriedades agora são dos tipos de protocolo.
+    // Serviços injetados via protocolo para facilitar testes e desacoplamento
     private let api: APIServiceProtocol
     private let service: PersistenceServiceProtocol
+    // Usuário logado
     private let user: User
+    // URL do Pokémon a ser detalhado
     private let urlString: String
 
-    // MUDANÇA 2: Um novo inicializador "designado" que recebe os protocolos.
-    // Este será o inicializador que usaremos nos nossos testes.
+    // Inicializador principal para injeção de dependências (usado em testes)
     init(
         pokemonURL: String,
         user: User,
@@ -29,8 +36,7 @@ class PokemonDetailViewModel: ObservableObject {
         fetchDetail()
     }
     
-    // MUDANÇA 3: O init antigo se torna um `convenience init`.
-    // Ele cria as dependências e chama o novo init. O código do app não precisa mudar.
+    // Inicializador de conveniência para uso no app
     convenience init(pokemonURL: String, user: User, modelContainer: ModelContainer) {
         let apiService = APIService.shared
         let persistenceService = PersistenceService(modelContainer: modelContainer)
@@ -42,12 +48,12 @@ class PokemonDetailViewModel: ObservableObject {
         )
     }
     
+    // Busca os detalhes do Pokémon na API e verifica se está favoritado
     private func fetchDetail() {
         Task {
             isLoading = true
             defer { isLoading = false }
             do {
-                // A chamada da API agora usa o protocolo
                 detail = try await api.fetchPokemonDetail(from: urlString)
                 await checkIfFavorited()
             } catch {
@@ -56,21 +62,21 @@ class PokemonDetailViewModel: ObservableObject {
         }
     }
     
-    // A chamada do botão dispara esta função.
+    // Alterna o status de favorito do Pokémon (adiciona ou remove dos favoritos)
     func toggleFavorite() {
         guard let detail = detail else { return }
 
         Task { [weak self] in
             guard let self = self else { return }
-            
-            // A lógica aqui já usa `service` (o protocolo), então não precisa de mudanças.
+            // Verifica se já está favoritado
             let isCurrentlyFavorited = await self.service.isFavorite(pokemonID: detail.id, for: self.user)
-            
             do {
                 if isCurrentlyFavorited {
+                    // Remove dos favoritos
                     try await self.service.removeFavorite(pokemonID: detail.id, from: self.user)
                     await MainActor.run { self.isFavorited = false }
                 } else {
+                    // Adiciona aos favoritos
                     try await self.service.addFavorite(pokemonDetail: detail, for: self.user)
                     await MainActor.run { self.isFavorited = true }
                 }
@@ -80,6 +86,7 @@ class PokemonDetailViewModel: ObservableObject {
         }
     }
     
+    // Verifica se o Pokémon já está favoritado pelo usuário
     private func checkIfFavorited() async {
         guard let detail = detail else { return }
         self.isFavorited = await service.isFavorite(pokemonID: detail.id, for: user)

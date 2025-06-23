@@ -1,15 +1,19 @@
+// Importa o framework SwiftUI para construção da interface
 import SwiftUI
 
+// View responsável por exibir um card individual de Pokémon no grid
 struct PokemonGridItemView: View {
+    // Pokémon a ser exibido
     let pokemon: Pokemon
+    // Namespace para animações
     let animationNamespace: Namespace.ID
     
-    // Estado para armazenar a imagem carregada
+    // Estado para armazenar a imagem carregada do Pokémon
     @State private var image: Image?
     
     var body: some View {
         VStack(spacing: AppSpacing.small) {
-            // Lógica de exibição da imagem
+            // Exibe a imagem do Pokémon, se carregada
             if let image {
                 image
                     .resizable()
@@ -17,11 +21,12 @@ struct PokemonGridItemView: View {
                     .frame(width: 80, height: 80)
                     .matchedGeometryEffect(id: pokemon.id, in: animationNamespace)
             } else {
-                // Placeholder enquanto a imagem carrega ou em caso de falha
+                // Placeholder enquanto a imagem carrega
                 ProgressView()
                     .frame(width: 80, height: 80)
             }
 
+            // Nome do Pokémon
             Text(pokemon.name.capitalized)
                 .font(AppFonts.caption)
                 .foregroundColor(AppColors.primaryText)
@@ -30,12 +35,13 @@ struct PokemonGridItemView: View {
         .padding()
         .background(AppColors.cardBackground)
         .cornerRadius(AppCornerRadius.small)
-        // Task para carregar a imagem quando a view aparecer
+        // Carrega a imagem do Pokémon ao exibir o card
         .task {
             await loadImage()
         }
     }
     
+    // Função assíncrona para buscar a imagem do Pokémon
     private func loadImage() async {
         guard let url = pokemon.spriteURL else { return }
         

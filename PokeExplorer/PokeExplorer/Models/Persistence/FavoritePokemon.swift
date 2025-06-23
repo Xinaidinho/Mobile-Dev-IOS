@@ -8,6 +8,7 @@
 import Foundation
 import SwiftData
 
+// Modelo de dados que representa um Pokémon favoritado por um usuário
 @Model
 final class FavoritePokemon {
     /// Usamos o ID do Pokémon da PokéAPI como nosso identificador único para evitar duplicatas.
@@ -20,6 +21,7 @@ final class FavoritePokemon {
     /// Relação inversa: a qual usuário este favorito pertence.
     var user: User?
     
+    /// Inicializador padrão do favorito
     init(pokemonID: Int, name: String, imageUrl: String?) {
         self.pokemonID = pokemonID
         self.name = name

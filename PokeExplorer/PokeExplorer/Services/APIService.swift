@@ -1,21 +1,23 @@
 import Foundation
 
 @MainActor
-// MUDANÇA AQUI: A classe agora adota o novo protocolo.
+// Serviço responsável por acessar a API da PokéAPI e buscar dados de Pokémon
 class APIService: APIServiceProtocol {
+    // Instância singleton para uso global
     static let shared = APIService()
 
     private let baseURL = URL(string: "https://pokeapi.co/api/v2")!
     private let decoder: JSONDecoder
     private let session: URLSession
 
+    // Inicializador privado para garantir singleton
     private init() {
         decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         session = .shared
     }
 
-    /// Lista paginada
+    /// Busca lista paginada de Pokémons
     func fetchPokemonList(limit: Int, offset: Int) async throws -> PokemonResponse {
         var comps = URLComponents(url: baseURL.appendingPathComponent("pokemon"),
                                   resolvingAgainstBaseURL: false)!
@@ -32,7 +34,7 @@ class APIService: APIServiceProtocol {
         return try decoder.decode(PokemonResponse.self, from: data)
     }
 
-    /// Detalhes a partir de qualquer URL completa
+    /// Busca detalhes de um Pokémon a partir de uma URL completa
     func fetchPokemonDetail(from urlString: String) async throws -> PokemonDetail {
         guard let url = URL(string: urlString) else {
             throw URLError(.badURL)

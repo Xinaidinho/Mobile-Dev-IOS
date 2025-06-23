@@ -1,19 +1,27 @@
+// Importa frameworks necessários
 import SwiftUI
 import SwiftData
 
+// View responsável por exibir os detalhes de um Pokémon selecionado
 struct PokemonDetailView: View {
+    // ViewModel com os dados e lógica da tela de detalhes
     @ObservedObject var viewModel: PokemonDetailViewModel
+    // Namespace para animações
     let namespace: Namespace.ID
+    // Pokémon a ser detalhado
     let pokemon: Pokemon
     
+    // Estado para controlar o botão de favoritar
     @State private var favoritingTrigger = false
 
     var body: some View {
         Group {
+            // Exibe indicador de carregamento
             if viewModel.isLoading {
                 ProgressView()
                     .scaleEffect(1.5)
                     .padding()
+            // Exibe detalhes do Pokémon, se disponíveis
             } else if let detail = viewModel.detail {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
@@ -27,15 +35,18 @@ struct PokemonDetailView: View {
                     }
                     .padding()
                 }
+            // Exibe mensagem de erro, se houver
             } else if let error = viewModel.errorMessage {
                 Text(error)
                     .foregroundColor(.red)
                     .padding()
+            // Caso não haja dados nem erro
             } else {
                 EmptyView()
             }
         }
         .navigationTitle(viewModel.detail?.name.capitalized ?? "Carregando…")
+        // Atualiza favoritos ao acionar o botão
         .task(id: favoritingTrigger) {
             if favoritingTrigger {
                 viewModel.toggleFavorite()
@@ -43,7 +54,7 @@ struct PokemonDetailView: View {
         }
     }
 
-    // MARK: – Usa a URL do model Pokemon, não o JSON de detail
+    // MARK: – Exibe a imagem principal do Pokémon
     private func artworkView() -> some View {
         AsyncImage(url: pokemon.officialArtworkURL) { phase in
             switch phase {
@@ -57,7 +68,7 @@ struct PokemonDetailView: View {
                     .scaledToFit()
                     .matchedGeometryEffect(id: pokemon.id, in: namespace)
             case .failure:
-                // fallback para o sprite pequeno, se quiser:
+                // Fallback para sprite pequeno, se houver erro
                 if let sprite = pokemon.spriteURL {
                     AsyncImage(url: sprite) { inner in
                         if let image = try? inner.image {
@@ -79,6 +90,7 @@ struct PokemonDetailView: View {
         .frame(maxWidth: .infinity)
     }
     
+    // Imagem placeholder caso não seja possível carregar a arte
     private func placeholderImage() -> some View {
         Image(systemName: "photo")
             .resizable()
@@ -87,6 +99,7 @@ struct PokemonDetailView: View {
             .frame(width: 100, height: 100)
     }
 
+    // Exibe os tipos do Pokémon
     private func typesView(for detail: PokemonDetail) -> some View {
         HStack {
             ForEach(detail.types, id: \.slot) { entry in
@@ -101,6 +114,7 @@ struct PokemonDetailView: View {
         }
     }
 
+    // Exibe altura e peso do Pokémon
     private func sizeView(for detail: PokemonDetail) -> some View {
         HStack(spacing: AppSpacing.medium) {
             Text("Altura: \(detail.height)")
@@ -110,6 +124,7 @@ struct PokemonDetailView: View {
         .foregroundColor(AppColors.secondaryText)
     }
 
+    // Botão para favoritar/desfavoritar o Pokémon
     private func favoriteButton(for detail: PokemonDetail) -> some View {
         Button {
             favoritingTrigger.toggle()

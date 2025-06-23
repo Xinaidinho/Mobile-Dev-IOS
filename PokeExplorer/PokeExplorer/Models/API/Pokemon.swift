@@ -3,8 +3,8 @@ import Foundation
 // MARK: — Pokémon básico da listagem
 /// Representa um Pokémon na listagem inicial (nome + URL para detalhes).
 struct Pokemon: Codable, Identifiable, Hashable {
-    let name: String
-    let url: String
+    let name: String           // Nome do Pokémon
+    let url: String            // URL para detalhes do Pokémon
 
     /// Extrai o ID (numérico) a partir da URL.
     var id: Int {
@@ -26,9 +26,9 @@ struct Pokemon: Codable, Identifiable, Hashable {
 // MARK: — Resposta paginada da API
 /// Estrutura que representa a resposta da listagem de Pokémons com paginação.
 struct PokemonResponse: Codable {
-    let count: Int      // total de resultados disponíveis
-    let next: String?   // URL para a próxima página
-    let previous: String? // URL para a página anterior
+    let count: Int         // total de resultados disponíveis
+    let next: String?      // URL para a próxima página
+    let previous: String?  // URL para a página anterior
     let results: [Pokemon] // lista de Pokémons
 }
 
