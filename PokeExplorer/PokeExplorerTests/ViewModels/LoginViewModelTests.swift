@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import Combine // Necessário para observar as mudanças da propriedade @Published
 @testable import PokeExplorer
 
 @MainActor
@@ -18,18 +19,12 @@ final class LoginViewModelTests: XCTestCase {
 
     // MARK: - Setup & Teardown
     
-    /// Este método é chamado antes de cada teste na classe.
-    /// É o lugar perfeito para criar nossos objetos de teste.
     override func setUp() {
         super.setUp()
-        // 1. Crie uma nova instância do nosso mock antes de cada teste.
         mockPersistenceService = MockPersistenceService()
-        // 2. Crie o ViewModel, injetando o mock através do init de teste.
         viewModel = LoginViewModel(persistenceService: mockPersistenceService)
     }
 
-    /// Este método é chamado após a conclusão de cada teste.
-    /// Usamos para limpar os objetos e evitar vazamento de memória entre os testes.
     override func tearDown() {
         viewModel = nil
         mockPersistenceService = nil
@@ -38,88 +33,89 @@ final class LoginViewModelTests: XCTestCase {
     
     // MARK: - Test Cases
 
-    /// Testa o cenário de login bem-sucedido.
-    func testLogin_WhenSuccessful() async {
-        // Given (Dado)
+    func testLogin_WhenSuccessful() async throws {
+        // Given
         mockPersistenceService.shouldSucceed = true
         let expectedUser = mockPersistenceService.mockUser
-        
         viewModel.username = "mockUser"
         viewModel.password = "correct_password"
         
-        // When (Quando)
+        // When
         await viewModel.login()
         
-        // Then (Então)
+        // Then
         XCTAssertFalse(viewModel.isLoading, "isLoading deveria ser falso após a conclusão.")
         XCTAssertNil(viewModel.errorMessage, "errorMessage deveria ser nulo em um login bem-sucedido.")
         XCTAssertNotNil(viewModel.authenticatedUser, "authenticatedUser não deveria ser nulo.")
         XCTAssertEqual(viewModel.authenticatedUser?.username, expectedUser.username, "O usuário autenticado deve ser o esperado.")
     }
     
-    /// Testa o cenário de falha de login (usuário não encontrado).
-    func testLogin_WhenUserNotFound() async {
-        // Given (Dado)
+    func testLogin_WhenUserNotFound() async throws {
+        // Given
         mockPersistenceService.shouldSucceed = false
         mockPersistenceService.errorToThrow = PersistenceError.userNotFound
         let expectedErrorMessage = "Usuário não encontrado."
-        
         viewModel.username = "non_existent_user"
         viewModel.password = "any_password"
         
-        // When (Quando)
+        // When
         await viewModel.login()
         
-        // Then (Então)
+        // Then
         XCTAssertFalse(viewModel.isLoading, "isLoading deveria ser falso após a conclusão.")
         XCTAssertNil(viewModel.authenticatedUser, "authenticatedUser deveria ser nulo em um login com falha.")
         XCTAssertNotNil(viewModel.errorMessage, "errorMessage não deveria ser nulo.")
         XCTAssertEqual(viewModel.errorMessage, expectedErrorMessage, "A mensagem de erro não é a esperada.")
     }
     
-    /// Testa o cenário de falha de login (senha incorreta).
-    func testLogin_WhenWrongPassword() async {
-        // Given (Dado)
+    func testLogin_WhenWrongPassword() async throws {
+        // Given
         mockPersistenceService.shouldSucceed = false
         mockPersistenceService.errorToThrow = PersistenceError.wrongPassword
         let expectedErrorMessage = "Senha incorreta."
-        
         viewModel.username = "mockUser"
         viewModel.password = "wrong_password"
         
-        // When (Quando)
+        // When
         await viewModel.login()
         
-        // Then (Então)
+        // Then
         XCTAssertFalse(viewModel.isLoading, "isLoading deveria ser falso após a conclusão.")
         XCTAssertNil(viewModel.authenticatedUser, "authenticatedUser deveria ser nulo em um login com falha.")
         XCTAssertNotNil(viewModel.errorMessage, "errorMessage não deveria ser nulo.")
         XCTAssertEqual(viewModel.errorMessage, expectedErrorMessage, "A mensagem de erro não é a esperada.")
     }
     
-    /// Testa se a propriedade `isLoading` é gerenciada corretamente durante a chamada de login.
+    /// Testa se a propriedade `isLoading` transita para `true` e depois para `false`.
     func testIsLoading_IsManagedCorrectlyDuringLogin() async {
         // Given
-        mockPersistenceService.shouldSucceed = true
+        let startedLoading = XCTestExpectation(description: "isLoading deve se tornar true")
+        let finishedLoading = XCTestExpectation(description: "isLoading deve se tornar false")
         
-        // Create an expectation
-        let expectation = XCTestExpectation(description: "Login completes and sets isLoading to false")
-        
-        // Observe a mudança em isLoading
-        let cancellable = viewModel.$isLoading.sink { isLoading in
-            if !isLoading { // When it turns back to false
-                expectation.fulfill()
+        var loadingStates: [Bool] = []
+        // Observamos as mudanças na propriedade $isLoading
+        let cancellable = viewModel.$isLoading
+            .dropFirst() // Ignoramos o valor inicial que é `false`
+            .sink { state in
+                loadingStates.append(state)
+                if state == true {
+                    startedLoading.fulfill() // Cumpre a primeira expectativa
+                }
+                if state == false {
+                    finishedLoading.fulfill() // Cumpre a segunda expectativa
+                }
             }
-        }
-        
+
         // When
-        viewModel.login() // Don't await here, we want to check the state during the call
+        await viewModel.login()
         
         // Then
-        XCTAssertTrue(viewModel.isLoading, "isLoading deveria ser true imediatamente após chamar login().")
+        // Esperamos que ambas as expectativas sejam cumpridas, na ordem correta.
+        await fulfillment(of: [startedLoading, finishedLoading], timeout: 1.0, enforceOrder: true)
         
-        // Wait for the expectation to be fulfilled
-        await fulfillment(of: [expectation], timeout: 1.0)
-        cancellable.cancel() // Clean up the observer
+        // Verificação final opcional
+        XCTAssertEqual(loadingStates, [true, false], "A transição de estado de isLoading não ocorreu como esperado.")
+        
+        cancellable.cancel() // Limpamos o observador
     }
 }

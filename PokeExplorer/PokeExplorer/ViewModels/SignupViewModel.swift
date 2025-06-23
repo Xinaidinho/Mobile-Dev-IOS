@@ -11,13 +11,16 @@ class SignupViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var didSignUpSuccessfully = false
     
-    init() {}
+    // MUDANÇA 1: Adiciona uma propriedade para o serviço de persistência.
+    private let persistenceService: PersistenceServiceProtocol
     
-    // 1. A função signUp agora recebe o ModelContainer
-    func signUp(modelContainer: ModelContainer) {
-        // Cria o serviço com o container recebido
-        let persistenceService = PersistenceService(modelContainer: modelContainer)
-        
+    // MUDANÇA 2: O init agora recebe a dependência.
+    init(persistenceService: PersistenceServiceProtocol) {
+        self.persistenceService = persistenceService
+    }
+    
+    // MUDANÇA 3: A função signUp agora usa a dependência interna e não recebe parâmetros.
+    func signUp() {
         guard password == confirmPassword else {
             errorMessage = "As senhas não coincidem."
             return
@@ -31,7 +34,6 @@ class SignupViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        // 2. A chamada assíncrona ao serviço de cadastro está dentro de uma Task
         Task {
             do {
                 try await persistenceService.signUp(username: self.username, email: self.email, password: self.password)

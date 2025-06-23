@@ -1,15 +1,14 @@
 import SwiftUI
 
 struct LoginView: View {
-    // Recebe o ViewModel do ambiente
     @EnvironmentObject var viewModel: LoginViewModel
-    
+    @Environment(\.modelContext.container) private var modelContainer
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
                 Spacer()
 
-                // Lembre-se de adicionar uma imagem "logo" nos seus Assets
                 Image("logo")
                     .resizable()
                     .scaledToFit()
@@ -31,15 +30,21 @@ struct LoginView: View {
                 if viewModel.isLoading {
                     ProgressView()
                 } else {
-                    Button("Login") { viewModel.login() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppColors.primaryRed)
+                    // MUDANÇA: Como login() agora é async, a chamada precisa estar em uma Task.
+                    Button("Login") {
+                        Task {
+                            await viewModel.login()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppColors.primaryRed)
                 }
                 
                 Spacer()
                 
                 NavigationLink("Não tem uma conta? Cadastre-se") {
-                    SignupView()
+                    let persistenceService = PersistenceService(modelContainer: modelContainer)
+                    SignupView(viewModel: SignupViewModel(persistenceService: persistenceService))
                 }
             }
             .padding()

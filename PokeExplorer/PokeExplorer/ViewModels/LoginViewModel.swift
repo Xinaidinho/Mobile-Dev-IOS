@@ -9,7 +9,6 @@ class LoginViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var authenticatedUser: User?
     
-    // MUDANÇA AQUI: A propriedade agora é do tipo do protocolo.
     private var persistenceService: PersistenceServiceProtocol
     
     // O init do app continua funcionando como antes.
@@ -17,24 +16,24 @@ class LoginViewModel: ObservableObject {
         self.persistenceService = PersistenceService(modelContainer: modelContainer)
     }
     
-    // MUDANÇA AQUI: Adicionamos um init para os testes.
+    // O init para os testes.
     init(persistenceService: PersistenceServiceProtocol) {
         self.persistenceService = persistenceService
     }
     
-    func login() {
+    // MUDANÇA: A função agora é `async` para que possamos esperá-la nos testes.
+    func login() async {
         isLoading = true
         errorMessage = nil
         
-        Task {
-            do {
-                let user = try await self.persistenceService.login(username: self.username, password: self.password)
-                self.authenticatedUser = user
-            } catch {
-                self.errorMessage = (error as? LocalizedError)?.errorDescription ?? "Ocorreu um erro desconhecido."
-            }
-            
-            self.isLoading = false
+        // O `Task` não é mais necessário aqui, pois a própria função já é um contexto assíncrono.
+        do {
+            let user = try await self.persistenceService.login(username: self.username, password: self.password)
+            self.authenticatedUser = user
+        } catch {
+            self.errorMessage = (error as? LocalizedError)?.errorDescription ?? "Ocorreu um erro desconhecido."
         }
+        
+        self.isLoading = false
     }
 }

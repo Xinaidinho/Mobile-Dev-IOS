@@ -8,17 +8,38 @@ class PokemonDetailViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var isFavorited = false
 
-    private let api = APIService.shared
-    private let service: PersistenceService
+    // MUDANÇA 1: As propriedades agora são dos tipos de protocolo.
+    private let api: APIServiceProtocol
+    private let service: PersistenceServiceProtocol
     private let user: User
     private let urlString: String
 
-    // O init agora precisa do ModelContainer para criar o PersistenceService
-    init(pokemonURL: String, user: User, modelContainer: ModelContainer) {
+    // MUDANÇA 2: Um novo inicializador "designado" que recebe os protocolos.
+    // Este será o inicializador que usaremos nos nossos testes.
+    init(
+        pokemonURL: String,
+        user: User,
+        api: APIServiceProtocol,
+        service: PersistenceServiceProtocol
+    ) {
         self.urlString = pokemonURL
         self.user = user
-        self.service = PersistenceService(modelContainer: modelContainer)
+        self.api = api
+        self.service = service
         fetchDetail()
+    }
+    
+    // MUDANÇA 3: O init antigo se torna um `convenience init`.
+    // Ele cria as dependências e chama o novo init. O código do app não precisa mudar.
+    convenience init(pokemonURL: String, user: User, modelContainer: ModelContainer) {
+        let apiService = APIService.shared
+        let persistenceService = PersistenceService(modelContainer: modelContainer)
+        self.init(
+            pokemonURL: pokemonURL,
+            user: user,
+            api: apiService,
+            service: persistenceService
+        )
     }
     
     private func fetchDetail() {
@@ -26,6 +47,7 @@ class PokemonDetailViewModel: ObservableObject {
             isLoading = true
             defer { isLoading = false }
             do {
+                // A chamada da API agora usa o protocolo
                 detail = try await api.fetchPokemonDetail(from: urlString)
                 await checkIfFavorited()
             } catch {
@@ -41,17 +63,15 @@ class PokemonDetailViewModel: ObservableObject {
         Task { [weak self] in
             guard let self = self else { return }
             
-            // Primeiro, checamos o status atual de forma assíncrona
+            // A lógica aqui já usa `service` (o protocolo), então não precisa de mudanças.
             let isCurrentlyFavorited = await self.service.isFavorite(pokemonID: detail.id, for: self.user)
             
             do {
                 if isCurrentlyFavorited {
                     try await self.service.removeFavorite(pokemonID: detail.id, from: self.user)
-                    // Atualiza a UI na thread principal
                     await MainActor.run { self.isFavorited = false }
                 } else {
                     try await self.service.addFavorite(pokemonDetail: detail, for: self.user)
-                    // Atualiza a UI na thread principal
                     await MainActor.run { self.isFavorited = true }
                 }
             } catch {

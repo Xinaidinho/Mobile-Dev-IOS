@@ -2,10 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct SignupView: View {
-    @StateObject private var viewModel = SignupViewModel()
-    
-    // 1. Obtenha o ModelContainer do ambiente
-    @Environment(\.modelContext.container) private var modelContainer
+    // MUDANÇA 1: A view agora recebe o ViewModel e o observa.
+    @ObservedObject var viewModel: SignupViewModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -29,9 +27,9 @@ struct SignupView: View {
             if viewModel.isLoading {
                 ProgressView()
             } else {
-                // 2. Passe o modelContainer ao chamar a função signUp
+                // MUDANÇA 2: A chamada da função não passa mais parâmetros.
                 Button("Cadastrar") {
-                    viewModel.signUp(modelContainer: modelContainer)
+                    viewModel.signUp()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(AppColors.primaryRed)

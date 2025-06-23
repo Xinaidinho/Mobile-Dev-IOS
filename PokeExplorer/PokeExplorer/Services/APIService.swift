@@ -1,7 +1,8 @@
 import Foundation
 
 @MainActor
-class APIService {
+// MUDANÇA AQUI: A classe agora adota o novo protocolo.
+class APIService: APIServiceProtocol {
     static let shared = APIService()
 
     private let baseURL = URL(string: "https://pokeapi.co/api/v2")!

@@ -13,9 +13,7 @@ struct PokemonListView: View {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(viewModel.pokemons) { pokemon in
-                        // 1) Use a forma com closures para destino e label
                         NavigationLink {
-                            // 2) Quebre em sub-expressões
                             let detailVM = PokemonDetailViewModel(
                                 pokemonURL: pokemon.url,
                                 user: user,
@@ -27,16 +25,10 @@ struct PokemonListView: View {
                                 pokemon: pokemon
                             )
                         } label: {
-                            VStack {
-                                Text(pokemon.name.capitalized)
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                    .multilineTextAlignment(.center)
-                                    .padding()
-                                    .frame(maxWidth: .infinity)
-                                    .background(Color(.secondarySystemBackground))
-                                    .cornerRadius(8)
-                            }
+                            PokemonGridItemView(
+                                pokemon: pokemon,
+                                animationNamespace: animationNamespace
+                            )
                         }
                         .buttonStyle(.plain)
                         .onAppear {
@@ -56,11 +48,7 @@ struct PokemonListView: View {
                 }
             }
             .navigationTitle("Explorar")
-            .toolbar {
-                Button("Tudo") {
-                    Task { await viewModel.fetchAllPokemons() }
-                }
-            }
+            // MUDANÇA: O bloco .toolbar foi removido daqui.
             .task {
                 await viewModel.fetchInitialPokemons()
             }

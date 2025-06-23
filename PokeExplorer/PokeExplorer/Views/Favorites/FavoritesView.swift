@@ -1,39 +1,27 @@
 import SwiftUI
 import SwiftData
 
-// A View auxiliar 'FavoriteGridItemView' não precisa de alterações.
 struct FavoriteGridItemView: View {
     let favorite: FavoritePokemon
+    
+    @State private var image: Image?
 
-    /// Monta a URL exata do sprite 2D oficial
     private var spriteURL: URL? {
-        URL(string:
-            "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/\(favorite.pokemonID).png"
-        )
+        URL(string: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/\(favorite.pokemonID).png")
     }
 
     var body: some View {
         VStack {
-            AsyncImage(url: spriteURL) { phase in
-                switch phase {
-                case .empty:
-                    ProgressView()
-                        .tint(AppColors.primaryRed)
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                case .failure:
-                    // fallback genérico
-                    Image(systemName: "photo")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundColor(.gray)
-                @unknown default:
-                    EmptyView()
-                }
+            if let image {
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+            } else {
+                ProgressView()
+                    .tint(AppColors.primaryRed)
+                    .frame(width: 100, height: 100)
             }
-            .frame(width: 100, height: 100)
 
             Text(favorite.name.capitalized)
                 .font(AppFonts.headline)
@@ -43,6 +31,25 @@ struct FavoriteGridItemView: View {
         .background(AppColors.cardBackground)
         .cornerRadius(AppCornerRadius.medium)
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .task {
+            await loadImage()
+        }
+    }
+    
+    private func loadImage() async {
+        guard let url = spriteURL, image == nil else { return }
+        
+        var request = URLRequest(url: url)
+        request.setValue("PokeExplorerApp", forHTTPHeaderField: "User-Agent")
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            if let uiImage = UIImage(data: data) {
+                self.image = Image(uiImage: uiImage)
+            }
+        } catch {
+            print("Falha ao carregar a imagem do favorito \(favorite.name): \(error.localizedDescription)")
+        }
     }
 }
 
@@ -52,10 +59,7 @@ struct FavoritesView: View {
     @Query private var favorites: [FavoritePokemon]
     let user: User
     
-    // 1. Obtenha o ModelContainer do ambiente para poder passá-lo para o ViewModel de detalhes.
     @Environment(\.modelContext.container) private var modelContainer
-    
-    // 2. Adicione um Namespace para a animação de transição, assim como na outra tela.
     @Namespace private var animationNamespace
     
     init(user: User) {
@@ -75,8 +79,10 @@ struct FavoritesView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: AppSpacing.medium) {
                     ForEach(favorites) { favorite in
-                        // 3. Envolva o item do grid em um NavigationLink.
-                        NavigationLink(destination:
+                        // MUDANÇA AQUI: Reescrevemos o NavigationLink para uma sintaxe
+                        // que é mais fácil para o compilador interpretar.
+                        NavigationLink {
+                            // Destination View
                             PokemonDetailView(
                                 viewModel: PokemonDetailViewModel(
                                     pokemonURL: "https://pokeapi.co/api/v2/pokemon/\(favorite.pokemonID)/",
@@ -84,13 +90,13 @@ struct FavoritesView: View {
                                     modelContainer: modelContainer
                                 ),
                                 namespace: animationNamespace,
-                                // 🚀 Aqui criamos o model Pokemon pra reaproveitar spriteURL e officialArtworkURL
                                 pokemon: Pokemon(
                                     name: favorite.name,
                                     url: "https://pokeapi.co/api/v2/pokemon/\(favorite.pokemonID)/"
                                 )
                             )
-                        ) {
+                        } label: {
+                            // Label View
                             FavoriteGridItemView(favorite: favorite)
                         }
                         .buttonStyle(.plain)
