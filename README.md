@@ -1,3 +1,8 @@
+# **Alunos:**
+    * Bernardo Roorda de Geus
+    * Bruno Pires
+    * Eduardo Schneider
+
 # Documentação do Projeto: PokeExplorer
 
 ## 1. Descrição Geral do Aplicativo
